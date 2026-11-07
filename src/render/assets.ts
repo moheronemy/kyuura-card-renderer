@@ -1,13 +1,4 @@
-const urls = import.meta.glob<string>('../assets/card/*.png', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-});
-
-/** ファイル名（拡張子なし）→ URL */
-const ASSET_URLS: Record<string, string> = Object.fromEntries(
-  Object.entries(urls).map(([path, url]) => [path.replace(/^.*\/|\.\w+$/g, ''), url]),
-);
+import { ASSET_URLS } from './assetUrls';
 
 export const assetUrl = (key: string): string => {
   const url = ASSET_URLS[key];

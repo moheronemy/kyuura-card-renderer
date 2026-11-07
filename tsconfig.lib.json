@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": null,
+    "noEmit": false,
+    "declaration": true,
+    "rootDir": "src",
+    "outDir": "dist-lib"
+  },
+  "include": [],
+  "files": ["src/lib/index.ts"]
+}
