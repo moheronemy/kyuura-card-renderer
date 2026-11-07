@@ -53,8 +53,13 @@ src/
     holo.ts            キラ加工の模様と重ね方
     text.ts            禁則処理つきの折り返しと、枠に収める縮小
     assets.ts          素材画像の読み込み
+    assetUrls.ts       素材画像の URL の一覧（静的な import。素材を足したらここにも足す）
     fonts.ts           Web フォント（Noto Sans JP）の読み込み
-    draw.ts            素材を読み込んでから描く・PNG に書き出す
+    draw.ts            素材を読み込んでから描く・PNG に書き出す（エディタ用）
+    renderable.ts      カード・エネルギー・裏面をまとめて扱う描画の入口
+    energyCard.ts      エネルギーカードの仮の表示
+  engine/fromEngineCard.ts  kyuura-engine のカードデータ → 描けるデータ
+  lib/index.ts         ライブラリとして公開する API の入口
   state/               入力内容の更新（reducer）と保存
   ui/                  画面の部品（React）
   assets/card/         カードの素材画像
@@ -88,6 +93,53 @@ PCG は提供されたラティオスexの画像をもとに再構成し、縁�
 | `pcardback.jpg`                                    | カードの裏面（プレビューの裏返し用）               |
 | `sprite.png`                                       | エネルギーアイコン（28px、タイプ順に縦）           |
 | `type_sprite.png` / `button_sprite.png`            | 入力画面のタイプアイコン・ボタン                   |
+
+## ライブラリとして使う
+
+[kyuura-engine-gui](https://github.com/moheronemy/kyuura-engine-gui) などのほかのアプリから、カードの描画部分だけを使えます。公開の API は `src/lib/index.ts` から export したものだけです。
+
+### 入れ方
+
+パッケージの登録先には公開していないので、Git のコミットを固定して入れます。インストールのときに `prepare` が `dist-lib/`（JS・型定義・素材画像）を作ります。
+
+```sh
+npm install "github:moheronemy/kyuura-card-renderer#<40 桁のコミットハッシュ>"
+```
+
+- バンドルはしていません。素材画像（`.png`・`.jpg`）と Web フォント（`@fontsource/noto-sans-jp` の CSS）の import は、使う側のバンドラーが扱います。Vite で動作を確かめています
+- ブラウザの Canvas 2D で描きます。jsdom（Vitest など）には Canvas がないので、描画を呼ぶ部品のテストでは Canvas がないときの表示を用意するか、Canvas を差し替えてください（`drawRenderable` は `getContext('2d')` が使えないと例外を投げます）
+
+### 使い方
+
+```ts
+import { fromEngineCard, renderToCanvas, type EngineCardRecord } from 'kyuura-card-renderer';
+
+// record は kyuura-engine の kyuura_engine/data/kyuura_cards.json の cards の 1 件（描画に使う項目があればよい）
+const item = fromEngineCard(record as EngineCardRecord);
+await renderToCanvas(canvas, item, 0.5); // 400×560 を 1 として、200×280 で描く
+
+await renderToCanvas(backCanvas, { kind: 'back' }, 0.25); // カードの裏面
+```
+
+同じカードを何度も描くときは、`prepareRenderable`（素材・フォントの読み込み）と `drawRenderable`（同期の描画）に分けて使えます。素材画像は読み込んだものを使い回します。
+
+### エンジンのカードデータの変換（`fromEngineCard`）
+
+| エンジン                            | レンダラー                                                            |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| `jp_set` が `neo*`・`PRN`・`NIP*`   | ★neo の枠。それ以外は初代の枠（悪・鋼を使うカードは★neo の枠）        |
+| 段階 `baby`                         | たね（ベイビィの枠はない）                                            |
+| ポケモンパワー                      | ワザ欄の先頭に「ポケモンパワー：名前」と説明                          |
+| ルール文（「ひかる」ポケモンなど）  | 図鑑の説明の欄                                                        |
+| `jp_print.level`・`jp_print.rarity` | LV・レアリティの記号（`●(C)` → `●`）。`キラ` を含むとキラ加工（既定） |
+| 日本語の文がない項目                | 英語の文                                                              |
+| エネルギー（`category: "energy"`）  | エネルギーの仮の表示（`kind: "energy"`）                              |
+
+イラスト・イラストレーター・図鑑の説明・カード番号はエンジンのデータにないので空です（イラスト枠は白）。
+
+### エネルギーカード（仮の表示）
+
+エネルギーの枠の素材はまだないので、カードの形・名前・基本／特殊・タイプのアイコン・特殊エネルギーの説明を描く仮の表示です（右下に「仮の表示」と書きます）。データの型（`EnergyCardData`）は、本来の枠を実装しても変えない予定です。
 
 ## 公開
 

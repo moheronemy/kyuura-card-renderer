@@ -17,7 +17,10 @@ export interface RenderImages {
   evoArt?: HTMLImageElement;
 }
 
-const font = (size: number, weight = 700) => `${weight} ${size}px ${FONT_FAMILY}`;
+/** カードの文字のフォント指定（太さ・大きさ） */
+export const cardFont = (size: number, weight = 700): string =>
+  `${weight} ${size}px ${FONT_FAMILY}`;
+const font = cardFont;
 
 /** 画像が枠いっぱいに収まるように置いたときの描画位置 */
 export const artworkPlacement = (
@@ -52,7 +55,8 @@ const drawArtwork = (
   ctx.restore();
 };
 
-const drawEnergy = (
+/** sprite.png からエネルギーのアイコンを 1 つ描く */
+export const drawEnergy = (
   ctx: CanvasRenderingContext2D,
   sprite: HTMLImageElement | undefined,
   type: EnergyType,
@@ -69,7 +73,12 @@ const drawEnergy = (
 const MIN_TEXT_SCALE = 0.6;
 
 /** 枠に収まるように文字を小さくしながら段落を描く */
-const drawParagraph = (ctx: CanvasRenderingContext2D, text: string, box: TextBox, weight = 500) => {
+export const drawParagraph = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  box: TextBox,
+  weight = 500,
+) => {
   if (!text) return;
   const fit = fitText(text, { ...box, minSize: box.size * MIN_TEXT_SCALE }, (size) => {
     ctx.font = font(size, weight);
