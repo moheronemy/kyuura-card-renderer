@@ -16,6 +16,7 @@ import { CARD_HEIGHT, CARD_WIDTH } from '../render/renderCard';
 import type { CardAction } from '../state/cardReducer';
 import { GuideOverlay } from './GuideOverlay';
 
+// 保存キーは旧リポジトリ名（pcigen）の接頭辞にそろえている
 const GUIDES_KEY = 'pcigen:guides';
 
 const loadShowGuides = () => {

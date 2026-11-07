@@ -1,4 +1,4 @@
-# pcigen — 旧裏カードジェネレーター
+# kyuura-card-renderer — 旧裏カードジェネレーター
 
 旧裏（初代・★neo・e）と PCG のポケモンカード風の画像をブラウザで作るツールです。
 
@@ -93,3 +93,4 @@ PCG は提供されたラティオスexの画像をもとに再構成し、縁�
 
 `main` に push すると GitHub Actions で GitHub Pages にデプロイされます。
 初回だけ、リポジトリの Settings → Pages → Build and deployment の Source を「GitHub Actions」にしてください。
+公開先は https://moheronemy.github.io/kyuura-card-renderer/ です（リポジトリ名を変えると URL も変わります）。
