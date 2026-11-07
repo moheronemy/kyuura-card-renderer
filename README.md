@@ -121,7 +121,63 @@ await renderToCanvas(canvas, item, 0.5); // 400×560 を 1 として、200×280 
 await renderToCanvas(backCanvas, { kind: 'back' }, 0.25); // カードの裏面
 ```
 
+### 同じ Canvas へ続けて描くとき
+
+`renderToCanvas` は素材画像とフォントを読み込んでから描くので、終わるまで時間がかかることがあります。同じ Canvas へ続けて要求したときは、**最後に始めた要求だけが描きます**。先に始めた要求の読み込みがあとで終わっても、新しい内容を上書きしません。
+
+| 場合                                                                                               | 結果                                                              |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 描いた                                                                                             | `true` で終わる                                                   |
+| あとから同じ Canvas への `renderToCanvas`・`drawRenderable`・`cancelRenderToCanvas` で無効になった | 描かずに `false` で終わる。読み込みに失敗していても reject しない |
+| 有効なまま読み込み・描画に失敗した                                                                 | reject する（成功とは扱わない）                                   |
+
+- 無効にするのは同じ Canvas の要求だけです。別の Canvas の要求には影響しません
+- 新しい要求が失敗しても、それより前の要求は無効のまま（描かない）です
+- 素材画像のキャッシュはすべての要求で共有します。無効にしても消しません
+- 待機中の要求の管理は Canvas を保持し続けません（`WeakMap`。終わった要求の情報は消します）
+
+#### 明示的なキャンセル（`cancelRenderToCanvas`）
+
+```ts
+cancelRenderToCanvas(canvas); // この Canvas で待機中の renderToCanvas を無効にする。無効にしたら true
+```
+
+ほかの Canvas・素材画像のキャッシュには触れず、**今描かれているピクセルも消しません**。キャンセルは「これから古い内容を描かせない」ためのもので、今の表示を隠す処理ではありません。閲覧者の切替などで非公開のカードをすぐに見えなくする必要があるときは、呼び出し側で Canvas を消す（`clearRect`）か、Canvas を取り除くか、裏面を描いてください。
+
+#### React での使い方
+
+```tsx
+import { useEffect, useRef } from 'react';
+import { cancelRenderToCanvas, renderToCanvas, type RenderableCard } from 'kyuura-card-renderer';
+
+export const CardImage = ({ item, scale }: { item: RenderableCard; scale: number }) => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    renderToCanvas(canvas, item, scale).catch((e: unknown) => {
+      // 有効な要求の失敗だけがここに来る（無効になった要求は false で終わる）
+      console.error(e);
+    });
+    return () => {
+      // 表示を変える・部品を外すときに、待機中の描画を無効にする
+      cancelRenderToCanvas(canvas);
+    };
+  }, [item, scale]);
+  return <canvas ref={ref} />;
+};
+```
+
+`item` は描く内容が変わったときだけ別のオブジェクトになるようにしてください（`useMemo` など）。毎回作り直すと、表示のたびに描き直します。
+
+表面から裏面へ切り替えるときは、新しい `renderToCanvas(canvas, { kind: 'back' })` を始めるだけで、待機中の表面は描かれなくなります。ただし裏面の読み込みが終わるまでは前の表面が残るので、すぐに隠す必要があれば先に Canvas を消してください。
+
+#### `prepareRenderable` と `drawRenderable` を使うとき
+
 同じカードを何度も描くときは、`prepareRenderable`（素材・フォントの読み込み）と `drawRenderable`（同期の描画）に分けて使えます。素材画像は読み込んだものを使い回します。
+
+- `drawRenderable` はすぐに描き、その Canvas で待機中の `renderToCanvas` を無効にします（あとから古い要求が上書きしません）
+- `prepareRenderable` の待ち合わせは呼び出し側の責任です。`prepareRenderable` を待っている間に同じ Canvas へ別の描画をしたなら、待ち終わったあとで描くかどうかは呼び出し側で決めてください（effect の cleanup で目印を立てるなど）。この経路にはレンダラーの世代管理はかかりません
 
 ### エンジンのカードデータの変換（`fromEngineCard`）
 
