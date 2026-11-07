@@ -34,6 +34,7 @@ export {
 } from '../render/energyCard';
 export { CARD_HEIGHT, CARD_WIDTH, type RenderImages } from '../render/renderCard';
 export {
+  cancelRenderToCanvas,
   drawRenderable,
   prepareRenderable,
   renderablePng,

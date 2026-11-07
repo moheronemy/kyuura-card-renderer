@@ -66,12 +66,18 @@ export const renderRenderable = (
   }
 };
 
-/** canvas の大きさを scale 倍（400×560 が 1）にして描く */
-export const drawRenderable = (
+/**
+ * renderToCanvas の待機中の要求（Canvas ごとに、最後に始めた 1 件の目印）。
+ * WeakMap なので Canvas を保持し続けない。要求が終わる・無効になると消す。
+ */
+const pending = new WeakMap<HTMLCanvasElement, object>();
+
+/** canvas の大きさを scale 倍にして描く（内部用。待機中の要求には触れない） */
+const paint = (
   canvas: HTMLCanvasElement,
   item: RenderableCard,
   images: RenderImages,
-  scale = 1,
+  scale: number,
 ) => {
   canvas.width = Math.round(CARD_WIDTH * scale);
   canvas.height = Math.round(CARD_HEIGHT * scale);
@@ -82,17 +88,59 @@ export const drawRenderable = (
   renderRenderable(ctx, item, images);
 };
 
-/** 読み込みから描画までをまとめて行う */
+/**
+ * 指定した Canvas で待機中の renderToCanvas を無効にする（あとで読み込みが終わっても描かない）。
+ * ほかの Canvas の要求・素材画像のキャッシュ・今描かれているピクセルには触れない。
+ * 非公開の情報を今すぐ隠したいときは、呼び出し側で Canvas を消す・裏面を描くなどをする。
+ * @returns 待機中の要求があって無効にしたら true
+ */
+export const cancelRenderToCanvas = (canvas: HTMLCanvasElement): boolean => pending.delete(canvas);
+
+/**
+ * canvas の大きさを scale 倍（400×560 が 1）にして、すぐに描く。
+ * この Canvas で待機中の renderToCanvas は無効になる（あとから上書きしない）。
+ */
+export const drawRenderable = (
+  canvas: HTMLCanvasElement,
+  item: RenderableCard,
+  images: RenderImages,
+  scale = 1,
+) => {
+  cancelRenderToCanvas(canvas);
+  paint(canvas, item, images, scale);
+};
+
+/**
+ * 読み込みから描画までをまとめて行う。同じ Canvas では、最後に始めた要求だけが描く。
+ *
+ * - 描いたら true で終わる
+ * - あとから同じ Canvas へ renderToCanvas・drawRenderable・cancelRenderToCanvas が呼ばれて無効になったら、
+ *   描かずに false で終わる（読み込みに失敗していても reject しない）
+ * - 有効なまま読み込み・描画に失敗したら reject する
+ */
 export const renderToCanvas = async (
   canvas: HTMLCanvasElement,
   item: RenderableCard,
   scale = 1,
-) => {
-  const images = await prepareRenderable(item);
-  drawRenderable(canvas, item, images, scale);
+): Promise<boolean> => {
+  const token = {};
+  pending.set(canvas, token);
+  const current = () => pending.get(canvas) === token;
+  let images: RenderImages;
+  try {
+    images = await prepareRenderable(item);
+  } catch (error) {
+    if (!current()) return false;
+    pending.delete(canvas);
+    throw error;
+  }
+  if (!current()) return false;
+  pending.delete(canvas);
+  paint(canvas, item, images, scale);
+  return true;
 };
 
-/** PNG として書き出す */
+/** PNG として書き出す（専用の Canvas に描くので、ほかの描画とは競合しない） */
 export const renderablePng = async (item: RenderableCard, scale = 1): Promise<Blob> => {
   const canvas = document.createElement('canvas');
   await renderToCanvas(canvas, item, scale);
