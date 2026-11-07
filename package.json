@@ -1,5 +1,5 @@
 {
-  "name": "pcigen",
+  "name": "kyuura-card-renderer",
   "private": true,
   "version": "0.1.0",
   "description": "旧裏ポケモンカード風の画像を作るジェネレーター（非公式ファンメイド）",

@@ -1,5 +1,6 @@
 import { createCard, parseCard, type CardData } from '../model/card';
 
+// 旧リポジトリ名（pcigen）の接頭辞のまま。変えると保存済みのカードが読めなくなる
 const KEY = 'pcigen:card:v1';
 
 export const loadSavedCard = (): CardData => {
